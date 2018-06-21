@@ -1,0 +1,7 @@
+<launch>
+    <node pkg="blackfly_driver" type="image_publisher" name="image_publisher" output="screen">
+        <rosparam command="load" file="$(find blackfly_driver)/params/default.yaml" />
+    </node>
+
+
+</launch>
