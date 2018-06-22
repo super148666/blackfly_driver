@@ -30,16 +30,12 @@
  * @attention   Copyright (C) 2018
 */
 
-#include "blackfly_driver.h"
+#include "flycapture_driver.h"
 
 
 blackfly_driver::blackfly_driver(ros::NodeHandle nh): 
-_nh(nh),
-_it(ImageTransport(nh))
+_nh(nh)
 {  
-    
-    
-    
 }
 
 blackfly_driver::~blackfly_driver() {

@@ -29,6 +29,8 @@
  * 
  * @attention   Copyright (C) 2018
 */
+#ifndef BLACKFLY_DRIVER_H
+#define BLACKFLY_DRIVER_H
 
 #include <ros/ros.h>
 #include <ros/package.h>
@@ -38,7 +40,7 @@
 #include <spinnaker/SpinGenApi/SpinnakerGenApi.h>
 #include <iostream>
 #include <sstream>
-#include "node_map_info.cpp"
+#include "node_map_info.h"
 
 using namespace Spinnaker;
 using namespace Spinnaker::GenApi;
@@ -49,7 +51,7 @@ using namespace image_transport;
 
 class blackfly_driver {
     public:
-        blackfly_driver(ros::NodeHandle nh, vector<string> pub_topics, vector<string> vSerials, PixelFormatEnums imgFormat = PixelFormat_MONO8, ColorProcessingAlgorithm algorithm = DEFAULT);
+        blackfly_driver(ros::NodeHandle nh);
         ~blackfly_driver();
         void configure();
         void spin(int frequency = -1);
@@ -59,14 +61,15 @@ class blackfly_driver {
     protected:
         void _readParams(ros::NodeHandle nh);
         bool _isSubscribed();
-        vector<ImagePtr> _grabImages(vector<CameraPtr> pCams, PixelFormatEnums imgFormat = PixelFormat_MONO8, ColorProcessingAlgorithm algorithm = DEFAULT);
+        vector<ImagePtr> _grabImages(vector<CameraPtr> pCams, PixelFormatEnums imgFormat = PixelFormat_Mono8, ColorProcessingAlgorithm algorithm = DEFAULT);
         vector<sensor_msgs::ImagePtr> _convertToImagePtr(vector<ImagePtr> pImages, string img_encoding = sensor_msgs::image_encodings::MONO8);
-        void _publish(vector<sensor::ImagePtr> imgPtrs, vector<Publisher> imgPubs);
+        void _publish(vector<sensor_msgs::ImagePtr> imgPtrs, vector<ros::Publisher> imgPubs);
+        void _cameraInit();
         ros::NodeHandle _nh;
         ImageTransport _it;
         int _numCameras;
         vector<string> _topicNames;
-        vector<Publisher> _vImgPubs;
+        vector<ros::Publisher> _vImgPubs;
         vector<sensor_msgs::ImagePtr> _vpRosImgs;
         vector<ImagePtr> _vpImgs;
         vector<string> _vSerials;
@@ -77,4 +80,7 @@ class blackfly_driver {
         string _ros_img_encoding;
         ColorProcessingAlgorithm _algorithm;
         int _spinRate;
-}
+};
+
+
+#endif //BLACKFLY_DRIVER_H

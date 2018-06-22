@@ -120,6 +120,8 @@ catkin_package(
 include_directories(
   include
   ${catkin_INCLUDE_DIRS}
+  /usr/include/spinnaker/
+  src
 )
 
 ## Declare a C++ library
@@ -130,9 +132,10 @@ include_directories(
 set(SOURCE_FILES 
     src/image_publisher.cpp 
     src/blackfly_driver.cpp 
-    include/blackfly_driver/blackfly_driver.h 
+    include/blackfly_driver.h 
     src/node_map_info.cpp
     )
+
 
 ## Add cmake target dependencies of the library
 ## as an example, code may need to be generated before libraries
@@ -145,7 +148,7 @@ set(SOURCE_FILES
 # add_executable(${PROJECT_NAME}_node src/blackfly_ros_driver_node.cpp)
 
 add_executable(${PROJECT_NAME}_node ${SOURCE_FILES})
-
+add_executable(flycapture_driver_node src/flycapture_example.cpp)
 
 ## Rename C++ executable without prefix
 ## The above recommended prefix causes long target names, the following renames the
@@ -164,9 +167,12 @@ add_executable(${PROJECT_NAME}_node ${SOURCE_FILES})
 
 target_link_libraries(${PROJECT_NAME}_node
   ${catkin_LIBRARIES}
-  lSpinnaker
+  Spinnaker
 )
-
+target_link_libraries(flycapture_driver_node 
+  ${catkin_LIBRARIES}
+  flycapture
+)
 #############
 ## Install ##
 #############

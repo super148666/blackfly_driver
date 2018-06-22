@@ -24,34 +24,16 @@
 // SOFTWARE OR OTHERWISE SUFFERED BY YOU AS A RESULT OF USING, MODIFYING 
 // OR DISTRIBUTING THIS SOFTWARE OR ITS DERIVATIVES.
 //=============================================================================
-#include "Spinnaker.h"
-#include "SpinGenApi/SpinnakerGenApi.h"
-#include <ros/ros.h>
-#include <iostream>
-#include <sstream>
-// This macro defines the maximum number of characters that will be printed out
-// for any information retrieved from a node.
-#define MAX_CHARS 35
-using namespace Spinnaker;
-using namespace Spinnaker::GenApi;
-using namespace Spinnaker::GenICam;
-using namespace std;
-// Use the following enum and global constant to select whether nodes are read
-// as 'value' nodes or their individual types.
-enum readType
-{
-        VALUE,
-        INDIVIDUAL
-};
-const readType chosenRead = VALUE;
+#include "node_map_info.h"
 // This helper function deals with output indentation, of which there is a lot.
 string indent(unsigned int level)
 {
-        string indent = "";
+        string lol = "";
         for (unsigned int i = 0; i < level; i++)
         {
-                indent += "   ";
+                lol += "   ";
         }
+        return lol;
 }
 // This function retrieves and prints the display name and value of all node
 // types as value nodes. A value node is a general node type that allows for
@@ -91,7 +73,7 @@ int printValueNode(CNodePtr node, unsigned int level)
                 }
                 // Print value
                 string starter = indent(level);
-                ROS_INFO_STREAM(starter.c_str << displayName << ": " << value);
+                ROS_INFO_STREAM("" << starter << displayName << ": " << value);
         }
         catch (Spinnaker::Exception &e)
         {
@@ -131,7 +113,7 @@ int printStringNode(CNodePtr node, unsigned int level)
                 
                 // Print value; 'level' determines the indentation level of output
                 string starter = indent(level);
-                ROS_INFO_STREAM(starter.c_str << displayName << ": " << value);
+                ROS_INFO_STREAM("" << starter << displayName << ": " << value);
         }
         catch (Spinnaker::Exception &e)
         {
@@ -166,7 +148,7 @@ int printIntegerNode(CNodePtr node, unsigned int level)
                 int64_t value = ptrIntegerNode->GetValue();
                 // Print value
                 string starter = indent(level);
-                ROS_INFO_STREAM(starter.c_str << displayName << ": " << value);
+                ROS_INFO_STREAM("" << starter << displayName << ": " << value);
         }
         catch (Spinnaker::Exception &e)
         {
@@ -197,7 +179,7 @@ int printFloatNode(CNodePtr node, unsigned int level)
                 double value = ptrFloatNode->GetValue();
                 // Print value
                 string starter = indent(level);
-                ROS_INFO_STREAM(starter.c_str << displayName << ": " << value);
+                ROS_INFO_STREAM("" << starter << displayName << ": " << value);
         }
         catch (Spinnaker::Exception &e)
         {
@@ -229,7 +211,7 @@ int printBooleanNode(CNodePtr node, unsigned int level)
                 gcstring value = (ptrBooleanNode->GetValue() ? "true" : "false");
                 // Print value
                 string starter = indent(level);
-                ROS_INFO_STREAM(starter.c_str << displayName << ": " << value);
+                ROS_INFO_STREAM("" << starter << displayName << ": " << value);
         }
         catch (Spinnaker::Exception &e)
         {
@@ -267,7 +249,7 @@ int printCommandNode(CNodePtr node, unsigned int level)
                 }
                 // Print tooltip
                 string starter = indent(level);
-                ROS_INFO_STREAM(starter.c_str << displayName << ": " << tooltip);
+                ROS_INFO_STREAM("" << starter << displayName << ": " << tooltip);
         }
         catch (Spinnaker::Exception &e)
         {
@@ -308,7 +290,7 @@ int printEnumerationNodeAndCurrentEntry(CNodePtr node, unsigned int level)
                 gcstring currentEntrySymbolic = ptrEnumEntryNode->GetSymbolic();
                 // Print current entry symbolic
                 string starter = indent(level);
-                ROS_INFO_STREAM(starter.c_str << displayName << ": " << currentEntrySymbolic);
+                ROS_INFO_STREAM("" << starter << displayName << ": " << currentEntrySymbolic);
         }
         catch (Spinnaker::Exception &e)
         {
@@ -331,7 +313,7 @@ int printCategoryNodeAndAllFeatures(CNodePtr node, unsigned int level)
                 gcstring displayName = ptrCategoryNode->GetDisplayName();
                 // Print display name
                 string starter = indent(level);
-                ROS_INFO_STREAM(starter.c_str << displayName);
+                ROS_INFO_STREAM("" << starter << displayName);
                 //
                 // Retrieve children
                 //
@@ -488,3 +470,4 @@ int RunSingleCamera(CameraPtr cam)
         }
         return result;
 }
+

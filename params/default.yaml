@@ -1,12 +1,11 @@
-number_of_cameras: 2
-#topic names
-topic1: '/left/raw'
-topic2: '/right/raw'
-#Serial number of cameras
-serial1: ''
-serial2: ''
+
+/num_of_cameras: 2
+/topic1: '/right_image'
+/topic2: '/left_image'
+/serial1: '18262610'
+/serial2: '18170477'
 #Pixel Format: mono/rgb/bgr/rgba/bgra + 8/16
-format: 'mono8'
-#Color Processing Algorithm: DEFAULT, NO_COLOR_PROCESSING, NEAREST_NEIGHBOR, EDGE_SENSING
-algorithm: 'DEFAULT'
-spin_rate: 15
+/format: 'rgb8'
+#Color Processing Algorithm: DEFAULT, NO_COLOR_PROCESSING, NEAREST_NEIGHBOR, EDGE_SENSING, HQ_LINEAR, RIGOROUS, IPP, DIRECTIONAL_FILTER
+/algorithm: 'DEFAULT'
+/spin_rate: 10

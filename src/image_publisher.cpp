@@ -31,15 +31,17 @@
 */
 
 #include <ros/ros.h>
+#include "blackfly_driver.h"
 
 
-int mian(int argc, char** argv) {
+int main(int argc, char** argv) {
     ros::init(argc, argv, "blackfly_driver");
     ros::NodeHandle nh;
 
     blackfly_driver bd(nh);
 
     bd.configure();
+    //bd.printCameraInfo();
     bd.spin();
 
     return 0;
