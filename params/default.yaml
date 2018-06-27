@@ -1,4 +1,3 @@
-
 /num_of_cameras: 2
 /topic1: '/right_image'
 /topic2: '/left_image'
@@ -7,5 +6,15 @@
 #Pixel Format: mono/rgb/bgr/rgba/bgra + 8/16
 /format: 'rgb8'
 #Color Processing Algorithm: DEFAULT, NO_COLOR_PROCESSING, NEAREST_NEIGHBOR, EDGE_SENSING, HQ_LINEAR, RIGOROUS, IPP, DIRECTIONAL_FILTER
-/algorithm: 'DEFAULT'
-/spin_rate: 10
+/algorithm: 'NEAREST_NEIGHBOR'
+/spin_rate: 15
+/packet_size: 8100
+/packet_delay: 6250
+/offsetX: 0
+/offsetY: 0
+/width: 644
+/height: 482
+/image_mode: 1
+/calibrate: true
+/absolute_path: false
+/file_path: 'params/calib.yml'

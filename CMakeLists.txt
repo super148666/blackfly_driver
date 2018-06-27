@@ -15,6 +15,7 @@ find_package(catkin REQUIRED COMPONENTS
   image_transport
 )
 
+find_package(OpenCV REQUIRED)
 ## System dependencies are found with CMake's conventions
 # find_package(Boost REQUIRED COMPONENTS system)
 
@@ -172,6 +173,7 @@ target_link_libraries(${PROJECT_NAME}_node
 target_link_libraries(flycapture_driver_node 
   ${catkin_LIBRARIES}
   flycapture
+  ${OpenCV_LIBRARIES}
 )
 #############
 ## Install ##

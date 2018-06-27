@@ -2,11 +2,14 @@
 #include <iostream>
 #include <sstream>
 #include <ros/ros.h>
+#include <ros/package.h>
 #include <sensor_msgs/Image.h>
 #include <cv_bridge/cv_bridge.h>
+#include <opencv2/opencv.hpp>
 
 using namespace FlyCapture2;
 using namespace std;
+using namespace cv;
 
 int numCameras;
 vector<string> topicNames;
@@ -17,7 +20,20 @@ vector<ros::Publisher> vImgPubs;
 vector<sensor_msgs::ImagePtr> vpRosImgs;
 string ros_img_encoding;
 
-void PrintError(Error error) { error.PrintErrorTrace(); }
+int packetSize = 8100;
+int packetDelay = 6250;
+Mode mode = MODE_1;
+bool packetResend = true;
+int offsetX = 0;
+int offsetY = 0;
+int width = 644;
+int height = 482;
+bool calibrate = false;
+string config_filepath;
+
+Mat Kl,Kr,Dl,Dr,Rl,Rr,Pl,Pr;
+
+void PrintError(FlyCapture2::Error error) { error.PrintErrorTrace(); }
 
 void PrintBuildInfo()
 {
@@ -120,7 +136,7 @@ int DisableHeartbeat(GigECamera& cam)
     unsigned int regVal;
 
     // Determine if heartbeat can be disabled by reading the GVCP Capability register
-    Error error = cam.ReadGVCPRegister(k_GVCPCapabilityAddr, &regVal);
+    FlyCapture2::Error error = cam.ReadGVCPRegister(k_GVCPCapabilityAddr, &regVal);
     if (error != PGRERROR_OK)
     {
         PrintError(error);
@@ -157,11 +173,8 @@ int DisableHeartbeat(GigECamera& cam)
     return 0;
 }
 
-
-
-
 void ReadParams(ros::NodeHandle nh) {
-    // std::string pkg_path = ros::package::getPath("blackfly_driver")+"/";
+    std::string pkg_path = ros::package::getPath("blackfly_driver")+"/";
     string paramName;
     
     // read num of cameras
@@ -213,7 +226,7 @@ void ReadParams(ros::NodeHandle nh) {
 
     // read pixel format for cameras
     paramName = "format";
-    string strFormat = "";
+    string strFormat;
     if(!nh.getParam(paramName, strFormat)) {
         ROS_ERROR_STREAM("Please assign " << paramName << ".\n" <<  
                          "Aborting.");
@@ -226,16 +239,9 @@ void ReadParams(ros::NodeHandle nh) {
     else {
 		ROS_ERROR_STREAM("The desired format is not supported.");
 		ROS_ERROR_STREAM("Supported format:\n" << 
-						 "  mono8\n" << 
-						 "  mono16\n" << 
-						 "  rgb8\n" << 
-						 "  rgba8\n" << 
-						 "  rgb16\n" << 
-						 "  rgba16\n" << 
-						 "  bgr8\n" << 
-						 "  bgra8\n" << 
-						 "  bgr16\n" << 
-						 "  bgra16\n" << 
+						 "  mono8\n" <<
+						 "  rgb8\n" <<
+						 "  bgr8\n" <<
 						 "Aborting.");
 		exit(-1);
 	}
@@ -248,8 +254,147 @@ void ReadParams(ros::NodeHandle nh) {
         exit(-1);
     }
     ROS_INFO_STREAM(paramName << ": " << spinRate << ".");
-
+	
+	int* int_ptr;
+	int int_reading;
+	// read packet_size
+    paramName = "packet_size";
+    int_ptr = &packetSize;
+    if(!nh.getParam(paramName, int_reading)) {
+        ROS_WARN_STREAM("Cannot find " << paramName << ".\n" <<  
+                         "Default value will be used.");
+    }
+    else *int_ptr = int_reading;
+    ROS_INFO_STREAM(paramName << ": " << *int_ptr << ".");
+    
+    // read packet_delay
+    paramName = "packet_delay";
+    int_ptr = &packetDelay;
+    if(!nh.getParam(paramName, int_reading)) {
+        ROS_WARN_STREAM("Cannot find " << paramName << ".\n" <<  
+                         "Default value will be used.");
+    }
+    else *int_ptr = int_reading;
+    ROS_INFO_STREAM(paramName << ": " << *int_ptr << ".");
+    
+    // read offsetX
+    paramName = "offsetX";
+    int_ptr = &offsetX;
+    if(!nh.getParam(paramName, int_reading)) {
+        ROS_WARN_STREAM("Cannot find " << paramName << ".\n" <<  
+                         "Default value will be used.");
+    }
+    else *int_ptr = int_reading;
+    ROS_INFO_STREAM(paramName << ": " << *int_ptr << ".");
+    
+    // read offsetY
+    paramName = "offsetY";
+    int_ptr = &offsetY;
+    if(!nh.getParam(paramName, int_reading)) {
+        ROS_WARN_STREAM("Cannot find " << paramName << ".\n" <<  
+                         "Default value will be used.");
+    }
+    else *int_ptr = int_reading;
+    ROS_INFO_STREAM(paramName << ": " << *int_ptr << ".");
+    
+    // read width
+    paramName = "width";
+    int_ptr = &width;
+    if(!nh.getParam(paramName, int_reading)) {
+        ROS_WARN_STREAM("Cannot find " << paramName << ".\n" <<  
+                         "Default value will be used.");
+    }
+    else *int_ptr = int_reading;
+    ROS_INFO_STREAM(paramName << ": " << *int_ptr << ".");
+    
+    // read height
+    paramName = "height";
+    int_ptr = &height;
+    if(!nh.getParam(paramName, int_reading)) {
+        ROS_WARN_STREAM("Cannot find " << paramName << ".\n" <<  
+                         "Default value will be used.");
+    }
+    else *int_ptr = int_reading;
+    ROS_INFO_STREAM(paramName << ": " << *int_ptr << ".");
+    
+    // read image_mode
+    paramName = "image_mode";
+    if(!nh.getParam(paramName, int_reading)) {
+        ROS_WARN_STREAM("Cannot find " << paramName << ".\n" <<  
+                         "Default value will be used.");
+    }
+    else mode = (Mode)int_reading;
+    ROS_INFO_STREAM(paramName << ": " << mode << ".");
+    
+    string param_name;
+	int param_int;
+	int* param_int_ptr;
+	float param_float;
+	float* param_float_ptr;
+	string param_string;
+	string* param_string_ptr;
+	bool param_bool;
+	bool* param_bool_ptr;
+	bool error_exit = false;
+	
+    param_name = "/calibrate";
+    param_bool_ptr = &calibrate;
+    if (!nh.getParam(param_name, param_bool)) {
+		ROS_WARN_STREAM("Missing parameters " << param_name << ".");
+		ROS_WARN_STREAM("Default setting will be used for " << param_name);
+	} else *param_bool_ptr = param_bool;
+	ROS_INFO_STREAM("Setting " << param_name << " to " << ((*param_bool_ptr)?"true":"false") << ".");
+	
+	if (calibrate) {
+		if (numCameras != 2) {
+			ROS_ERROR("calibration must be used with 2 cameras.");
+			ROS_ERROR("Aborting.");
+			exit(-1);
+		}
+		// load save_path
+		param_name = "/file_path";
+		param_string_ptr = &config_filepath;
+		if (!nh.getParam(param_name, param_string)) {
+			ROS_WARN_STREAM("Missing parameters " << param_name << ".");
+			ROS_WARN_STREAM("Default setting will be used for " << param_name);
+		} else *param_string_ptr = param_string;
+		if (param_string_ptr->empty()) {
+			ROS_ERROR_STREAM("Invalid empty " << param_name << ".");
+			error_exit = true;
+		}
+		ROS_INFO_STREAM("Setting " << param_name << " to " << *param_string_ptr << ".");
+		
+		
+		bool absolute_path = false;
+		param_name = "absolute_path";
+		param_bool_ptr = &absolute_path;
+		if (!nh.getParam(param_name, param_bool)) {
+			ROS_WARN_STREAM("Missing parameters " << param_name << ".");
+			ROS_WARN_STREAM("Default setting will be used for " << param_name);
+		} else *param_bool_ptr = param_bool;
+		ROS_INFO_STREAM("Setting " << param_name << " to " << ((*param_bool_ptr)?"true":"false") << ".");
+		
+		if(!absolute_path) {
+			config_filepath.insert(0,pkg_path);
+		}
+	}
     ROS_INFO("Done read parameters.");
+}
+
+void LoadCalibrationMatrix(string filename) {
+	ROS_INFO("Start load calibration matrixs.");
+	FileStorage fs(filename, FileStorage::READ);
+	fs["Kl"] >> Kl;
+	fs["Kr"] >> Kr;
+	fs["Dl"] >> Dl;
+	fs["Dr"] >> Dr;
+	fs["Rl"] >> Rl;
+	fs["Rr"] >> Rr;
+	fs["Pl"] >> Pl;
+	fs["Pr"] >> Pr;
+	fs.release();
+	
+	ROS_INFO("Done load calibration matrixs.");
 }
 
 
@@ -258,6 +403,13 @@ int main(int argc, char ** argv)
 	ros::init(argc, argv, "flycapture_driver");
 	ros::NodeHandle nh;
 	ReadParams(nh);
+	
+	LoadCalibrationMatrix(config_filepath);
+	
+	
+	Mat map_1[2], map_2[2];
+	initUndistortRectifyMap(Kl, Dl, Rl, Pl, Size(width, height),  CV_16SC2, map_1[0], map_2[0]);
+	initUndistortRectifyMap(Kr, Dr, Rr, Pr, Size(width, height),  CV_16SC2, map_1[1], map_2[1]);
 	
 	// Validate image encodings
     switch (imgFormat) {
@@ -276,16 +428,9 @@ int main(int argc, char ** argv)
         default:
             ROS_ERROR_STREAM("The desired format is not supported.");
             ROS_ERROR_STREAM("Supported format:\n" << 
-                             "  PixelFormat_Mono8\n" << 
-                             "  PixelFormat_Mono16\n" << 
-                             "  PixelFormat_RGB8\n" << 
-                             "  PixelFormat_RGBa8\n" << 
-                             "  PixelFormat_RGB16\n" << 
-                             "  PixelFormat_RGBa16\n" << 
-                             "  PixelFormat_BGR8\n" << 
-                             "  PixelFormat_BGRa8\n" << 
-                             "  PixelFormat_BGR16\n" << 
-                             "  PixelFormat_BGRa16\n" << 
+                             "  PixelFormat_Mono8\n" <<
+                             "  PixelFormat_RGB8\n" <<
+                             "  PixelFormat_BGR8\n" <<
                              "Aborting.");
             exit(-1);
     }
@@ -300,7 +445,7 @@ int main(int argc, char ** argv)
 	
     PrintBuildInfo();
 
-    Error error;
+    FlyCapture2::Error error;
 
     //
     // Initialize BusManager and retrieve number of cameras detected
@@ -314,7 +459,7 @@ int main(int argc, char ** argv)
         return -1;
     }
 
-    cout << "Number of cameras detected: " << numAllCameras << endl;
+    ROS_INFO_STREAM("Number of cameras detected: " << numAllCameras << ".");
 
     //
     // Check to make sure at least two cameras are connected before
@@ -322,12 +467,8 @@ int main(int argc, char ** argv)
     //
     if (numAllCameras < numCameras)
     {
-        cout << "Insufficient number of cameras." << endl;
-        cout << "Make sure at least " << numCameras << " cameras are connected for example to "
-                "run."
-             << endl;
-        cout << "Press Enter to exit." << endl;
-        cin.ignore();
+        ROS_ERROR_STREAM("Insufficient number of cameras.\n" <<
+						 "Make sure at least " << numCameras << " cameras are connected for example to run.");
         return -1;
     }
 
@@ -340,6 +481,7 @@ int main(int argc, char ** argv)
     // and capturing images.
     //
     GigECamera *pCameras = new GigECamera[numCameras];
+    
 
     //
     // Prepare each camera to acquire images
@@ -358,9 +500,7 @@ int main(int argc, char ** argv)
         if (error != PGRERROR_OK)
         {
             PrintError(error);
-            cout << "Press Enter to exit." << endl;
             delete[] pCameras;
-            cin.ignore();
             return -1;
         }
 
@@ -370,11 +510,9 @@ int main(int argc, char ** argv)
         {
             PrintError(error);
             delete[] pCameras;
-            cout << "Press Enter to exit." << endl;
-            cin.ignore();
             return -1;
         }
-
+        
         // Get the camera information
         CameraInfo camInfo;
         error = pCameras[i].GetCameraInfo(&camInfo);
@@ -382,12 +520,155 @@ int main(int argc, char ** argv)
         {
             PrintError(error);
             delete[] pCameras;
-            cout << "Press Enter to exit." << endl;
-            cin.ignore();
             return -1;
         }
-
         PrintCameraInfo(&camInfo);
+        
+        // enable packet resend
+        GigEConfig config;
+		error = pCameras[i].GetGigEConfig(&config);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+		config.enablePacketResend = true;
+		error = pCameras[i].SetGigEConfig(&config);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+		ROS_INFO("Packet resend is enabled.");
+		
+		// set camera imaging mode
+		bool supported = false;
+		error = pCameras[i].QueryGigEImagingMode(mode, &supported);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+		if (!supported) {
+			ostringstream ostr_mode;
+			ostr_mode << "The imaging mode " << mode << " is not supported.\n" << "Aborting.\n";
+			ROS_ERROR_STREAM(ostr_mode.str());
+			delete[] pCameras;
+			return -1;
+		}
+		error = pCameras[i].SetGigEImagingMode(mode);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+        ostringstream ostr_mode;
+		ostr_mode << "The imaging mode is set to " << mode << ".\n";
+        ROS_INFO_STREAM(ostr_mode.str());
+		
+		// set camera image setting
+		GigEImageSettings settings;
+		error = pCameras[i].GetGigEImageSettings(&settings);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+		settings.offsetX = 0;
+		settings.offsetY = 0;
+		settings.width = 644;
+		settings.height = 482;
+		settings.pixelFormat = PIXEL_FORMAT_RGB8;
+		error = pCameras[i].SetGigEImageSettings(&settings);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+        ostringstream ostr_settings;
+		ostr_settings << "Image setting:\n" <<
+						"    offsetX: 		" << settings.offsetX << ".\n" <<
+						"    offsetY: 		" << settings.offsetY << ".\n" <<
+						"    width: 		" << settings.width << ".\n" <<
+						"    height: 		" << settings.height << ".\n" <<
+						"    pixelFormat: 	" << settings.pixelFormat << ".\n";
+        ROS_INFO_STREAM(ostr_settings.str());
+        
+        // set packet size
+		GigEProperty ps_gp;
+		ps_gp.propType = PACKET_SIZE;
+		error = pCameras[i].GetGigEProperty(&ps_gp);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+		unsigned int temp_usint;
+		error = pCameras[i].DiscoverGigEPacketSize(&temp_usint);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+		ps_gp.value = 8100;
+		error = pCameras[i].SetGigEProperty(&ps_gp);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+		ROS_INFO_STREAM("The packet size for camera " << i << " is set to " << ps_gp.value << ".");
+		
+		// set packet delay
+		GigEProperty pd_gp;
+		ps_gp.propType = PACKET_DELAY;
+		error = pCameras[i].GetGigEProperty(&pd_gp);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+		pd_gp.value = pd_gp.max;
+		error = pCameras[i].SetGigEProperty(&ps_gp);
+		if (error != PGRERROR_OK)
+        {
+            PrintError(error);
+            delete[] pCameras;
+            return -1;
+        }
+		ROS_INFO_STREAM("The packet delay for camera " << i << " is set to " << pd_gp.value << ".");
+
+		FC2Config fc2config;
+		error = pCameras[i].GetConfiguration(&fc2config);
+		fc2config.isochBusSpeed = BUSSPEED_S_FASTEST;
+		fc2config.asyncBusSpeed = BUSSPEED_S_FASTEST;
+		error = pCameras[i].SetConfiguration(&fc2config);
+		ostringstream ostr_fc2config;
+		ostr_fc2config << 
+						"FC2Config:\n" <<
+						"    numBuffers:" << fc2config.numBuffers << ".\n" <<
+						"    numImageNotifications:" << fc2config.numImageNotifications << ".\n" <<
+						"    minNumImageNotifications:" << fc2config.minNumImageNotifications << ".\n" <<
+						"    grabTimeout:" << fc2config.grabTimeout << ".\n" <<
+						"    grabMode:" << fc2config.grabMode << ".\n" <<
+						"    highPerformanceRetrieveBuffer:" << fc2config.highPerformanceRetrieveBuffer << ".\n" <<
+						"    isochBusSpeed:" << fc2config.isochBusSpeed << ".\n" <<
+						"    asyncBusSpeed:" << fc2config.asyncBusSpeed << ".\n" <<
+						"    bandwidthAllocation:" << fc2config.bandwidthAllocation << ".\n" <<
+						"    registerTimeoutRetries:" << fc2config.registerTimeoutRetries << ".\n" <<
+						"    registerTimeout:" << fc2config.registerTimeout << ".\n";
+		ROS_INFO_STREAM(ostr_fc2config.str());
+        
 
         // Turn trigger mode off
         TriggerMode trigMode;
@@ -397,8 +678,6 @@ int main(int argc, char ** argv)
         {
             PrintError(error);
             delete[] pCameras;
-            cout << "Press Enter to exit." << endl;
-            cin.ignore();
             return -1;
         }
 
@@ -408,8 +687,6 @@ int main(int argc, char ** argv)
         {
             PrintError(error);
             delete[] pCameras;
-            cout << "Press Enter to exit." << endl;
-            cin.ignore();
             return -1;
         }
     }
@@ -440,7 +717,7 @@ int main(int argc, char ** argv)
                 continue;
             }
 
-            cout << "get image from camera " << i << "." << endl;
+            ROS_INFO_STREAM("get image from camera " << i << ".");
 			error = image.Convert(imgFormat, &convertedImage);
 			if (error != PGRERROR_OK)
 			{
@@ -449,16 +726,19 @@ int main(int argc, char ** argv)
 			}
 			unsigned int rowBytes = (double)convertedImage.GetReceivedDataSize()/(double)convertedImage.GetRows();
 			cv::Mat cvimg = cv::Mat(convertedImage.GetRows(), convertedImage.GetCols(), CV_8UC3, convertedImage.GetData(),rowBytes);
-			
+			if (calibrate) {
+				remap(cvimg, cvimg, map_1[i], map_2[i], INTER_LINEAR);
+			}
 			sensor_msgs::ImagePtr ros_img = cv_bridge::CvImage(std_msgs::Header(), ros_img_encoding, cvimg).toImageMsg();
 			vpRosImgs.push_back(ros_img);
         }
+        
         if (success) {
 			for (unsigned int i = 0; i < numCameras; i++)
 			{
 				 vImgPubs[i].publish(*vpRosImgs[i]);
 			}
-			cout << "published." << endl;
+			ROS_INFO("published.");
 		}
 		success = true;		
 		r.sleep();
@@ -476,8 +756,6 @@ int main(int argc, char ** argv)
 
     delete[] pCameras;
 
-    cout << "Press Enter to exit..." << endl;
-    cin.ignore();
 
     return 0;
 }
