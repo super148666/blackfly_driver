@@ -1,0 +1,7 @@
+<launch>
+    <node pkg="blackfly_driver" type="flycapture_driver_node" name="image_publisher" output="screen">
+        <rosparam command="load" file="$(find blackfly_driver)/params/nuway.yaml" />
+    </node>
+
+
+</launch>

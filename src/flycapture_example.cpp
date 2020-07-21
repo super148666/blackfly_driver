@@ -579,11 +579,11 @@ int main(int argc, char ** argv)
             delete[] pCameras;
             return -1;
         }
-		settings.offsetX = 0;
-		settings.offsetY = 0;
-		settings.width = 644;
-		settings.height = 482;
-		settings.pixelFormat = PIXEL_FORMAT_RGB8;
+		settings.offsetX = offsetX;
+		settings.offsetY = offsetY;
+		settings.width = width;
+		settings.height = height;
+		settings.pixelFormat = imgFormat;
 		error = pCameras[i].SetGigEImageSettings(&settings);
 		if (error != PGRERROR_OK)
         {
@@ -618,7 +618,7 @@ int main(int argc, char ** argv)
             delete[] pCameras;
             return -1;
         }
-		ps_gp.value = 8100;
+		ps_gp.value = packetSize;
 		error = pCameras[i].SetGigEProperty(&ps_gp);
 		if (error != PGRERROR_OK)
         {
@@ -638,7 +638,7 @@ int main(int argc, char ** argv)
             delete[] pCameras;
             return -1;
         }
-		pd_gp.value = pd_gp.max;
+		pd_gp.value = packetDelay;
 		error = pCameras[i].SetGigEProperty(&ps_gp);
 		if (error != PGRERROR_OK)
         {
