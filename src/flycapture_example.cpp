@@ -403,13 +403,14 @@ int main(int argc, char ** argv)
 	ros::init(argc, argv, "flycapture_driver");
 	ros::NodeHandle nh;
 	ReadParams(nh);
-	
-	LoadCalibrationMatrix(config_filepath);
-	
-	
-	Mat map_1[2], map_2[2];
-	initUndistortRectifyMap(Kl, Dl, Rl, Pl, Size(width, height),  CV_16SC2, map_1[0], map_2[0]);
-	initUndistortRectifyMap(Kr, Dr, Rr, Pr, Size(width, height),  CV_16SC2, map_1[1], map_2[1]);
+
+
+    Mat map_1[2], map_2[2];
+	if (calibrate) {
+        LoadCalibrationMatrix(config_filepath);
+        initUndistortRectifyMap(Kl, Dl, Rl, Pl, Size(width, height),  CV_16SC2, map_1[0], map_2[0]);
+        initUndistortRectifyMap(Kr, Dr, Rr, Pr, Size(width, height),  CV_16SC2, map_1[1], map_2[1]);
+	}
 	
 	// Validate image encodings
     switch (imgFormat) {
